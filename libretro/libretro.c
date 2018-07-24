@@ -31,6 +31,26 @@ static const char slash = '\\';
 static const char slash = '/';
 #endif
 
+#ifndef vasprintf
+ 	int vasprintf(char ** __restrict__ ret,
+	const char * __restrict__ format,
+	va_list ap) {
+	int len;
+	/* Get Length */
+	len = _vsnprintf(NULL,0,format,ap);
+	if (len < 0) return -1;
+	/* +1 for \0 terminator. */
+	*ret = malloc(len + 1);
+	/* Check malloc fail*/
+	if (!*ret) return -1;
+	/* Write String */
+	_vsnprintf(*ret,len+1,format,ap);
+	/* Terminate explicitly */
+	(*ret)[len] = '\0';
+	return len;
+	}
+#endif
+
 #define VIDEO_WIDTH 160
 #define VIDEO_HEIGHT 144
 #define VIDEO_PIXELS (VIDEO_WIDTH * VIDEO_HEIGHT)
@@ -100,6 +120,7 @@ static bool sameboy_dual = false;
 
 static bool link_cable_emulation = false;
 /*static bool infrared_emulation   = false;*/
+bool sprite_limit = false;
 
 signed short soundbuf[1024 * 2];
 
@@ -234,6 +255,7 @@ static const struct retro_variable vars_single[] = {
     { "sameboy_color_correction_mode", "Color correction; off|correct curves|emulate hardware|preserve brightness" },
     { "sameboy_high_pass_filter_mode", "High-pass filter; off|accurate|remove dc offset" },
     { "sameboy_model", "Emulated model; Game Boy Color|Game Boy Advance|Auto|Game Boy" },
+    { "sameboy_sprite_limit", "Raise sprite limit (Unsafe); disabled|enabled" },
     { NULL }
 };
 
@@ -250,6 +272,7 @@ static const struct retro_variable vars_single_dual[] = {
     { "sameboy_color_correction_mode_2", "Color correction for Game Boy #2; off|correct curves|emulate hardware|preserve brightness" },
     { "sameboy_high_pass_filter_mode_1", "High-pass filter for Game Boy #1; off|accurate|remove dc offset" },
     { "sameboy_high_pass_filter_mode_2", "High-pass filter for Game Boy #2; off|accurate|remove dc offset" },
+    { "sameboy_sprite_limit", "Raise sprite limit (Unsafe); disabled|enabled" },
     { NULL }
 };
 
@@ -265,6 +288,7 @@ static const struct retro_variable vars_dual[] = {
     { "sameboy_color_correction_mode_2", "Color correction for Game Boy #2; off|correct curves|emulate hardware|preserve brightness" },
     { "sameboy_high_pass_filter_mode_1", "High-pass filter for Game Boy #1; off|accurate|remove dc offset" },
     { "sameboy_high_pass_filter_mode_2", "High-pass filter for Game Boy #2; off|accurate|remove dc offset" },
+    { "sameboy_sprite_limit", "Raise sprite limit (Unsafe); disabled|enabled" },
     { NULL }
 };
 
@@ -588,6 +612,16 @@ static void check_variables(bool link)
         else
             audio_out = GB_2;
     }
+
+    var.key = "sameboy_sprite_limit";
+    var.value = NULL;
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+    {
+        if (strcmp(var.value, "enabled") == 0)
+            sprite_limit = true;
+        else
+            sprite_limit = false;
+    }
 }
 
 void retro_init(void)
@@ -734,7 +768,6 @@ void retro_reset(void)
 
 void retro_run(void)
 {
-
     bool updated = false;
 
     if (!initialized)
