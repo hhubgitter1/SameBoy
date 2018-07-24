@@ -1021,6 +1021,7 @@ void GB_draw_tilemap(GB_gameboy_t *gb, uint32_t *dest, GB_palette_type_t palette
     }
 }
 
+extern bool sprite_limit;
 uint8_t GB_get_oam_info(GB_gameboy_t *gb, GB_oam_info_t *dest, uint8_t *sprite_height)
 {
     uint8_t count = 0;
@@ -1034,7 +1035,7 @@ uint8_t GB_get_oam_info(GB_gameboy_t *gb, GB_oam_info_t *dest, uint8_t *sprite_h
             bool obscured = false;
             // Is sprite not in this line?
             if (sprite_y > y || sprite_y + *sprite_height <= y) continue;
-            if (++sprites_in_line == 11) obscured = true;
+            if(!sprite_limit && ++sprites_in_line == 11) obscured = true;
             
             GB_oam_info_t *info = NULL;
             if (!oam_to_dest_index[i]) {
